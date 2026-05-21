@@ -19,3 +19,25 @@ class RepositorioCreacionError(SBACError):
         if detalle:
             mensaje += f': {detalle}'
         super().__init__(mensaje)
+
+class RepositorioNoInicializadoError(SBACError):
+    """Se intentó operar sobre un directorio sin repositorio SBAC."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            'No se encontró un repositorio SBAC en este directorio. '
+            'Ejecuta "sbac init" primero'
+        )
+
+class ArchivoNoEncontradoError(SBACError):
+    """Se referenció un archivo que no existe en el workspace."""
+
+    def __init__(self, ruta: str) -> None:
+        super().__init__(f'El archivo "{ruta}" no existe')
+
+
+class ArchivoYaRastreadoError(SBACError):
+    """Se intentó añadir un archivo que ya está bajo seguimiento."""
+
+    def __init__(self, ruta: str) -> None:
+        super().__init__(f'El archivo "{ruta}" ya está bajo seguimiento')

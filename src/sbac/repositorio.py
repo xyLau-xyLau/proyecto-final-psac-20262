@@ -42,12 +42,39 @@ class Repositorio:
             raise RepositorioCreacionError(detalle=str(e)) from e
 
         return 'Repositorio SBAC inicializado en .sbac/'
-    
-    # --- Comandos pendientes ---
+
 
     def add(self, ruta_archivo: str) -> str:
-        """ Pendiente para RF-02. """
-        raise NotImplementedError('Pendiente para RF-02')
+        """
+        Añade un archivo al seguimiento del repositorio.
+
+        Args:
+            ruta_archivo (str): Ruta del archivo relativa al workspace
+
+        Returns:
+            str: Mensaje de éxito en español
+
+        Raises:
+            RepositorioNoInicializadoError: Si no existe .sbac/
+            ArchivoNoEncontradoError: Si el archivo no existe en el workspace
+            ArchivoYaRastreadoError: Si el archivo ya está bajo seguimiento
+        """
+        if not self.manejador.existe_repositorio():
+            raise RepositorioNoInicializadoError()
+
+        if not self.manejador.existe_archivo(ruta_archivo):
+            raise ArchivoNoEncontradoError(ruta_archivo)
+
+        rastreados = self.manejador.leer_tracked_files()
+        if ruta_archivo in rastreados:
+            raise ArchivoYaRastreadoError(ruta_archivo)
+
+        rastreados.append(ruta_archivo)
+        self.manejador.escribir_tracked_files(rastreados)
+
+        return f'"{ruta_archivo}" añadido al seguimiento'
+    
+    # --- Comandos pendientes ---
 
     def status(self) -> str:
         """Pendiente para RF-03."""
