@@ -19,3 +19,40 @@ class Version:
     autor: str
     mensaje: str
     archivos: list[str] = field(default_factory=list) 
+
+
+    def a_dict(self) -> dict:
+        """
+        Convierte la versión a un diccionario serializable a JSON.
+
+        Returns:
+            dict: Representación de la versión
+        """
+        return {
+            'id': self.id,
+            'parent_id': self.parent_id,
+            'timestamp': self.timestamp,
+            'autor': self.autor,
+            'mensaje': self.mensaje,
+            'archivos': self.archivos,
+        }
+    
+    @classmethod
+    def desde_dict(cls, datos: dict) -> 'Version':
+        """
+        Reconstruye una Version a partir de un diccionario.
+
+        Args:
+            datos (dict): Metadatos leídos de metadata.json
+
+        Returns:
+            Version: Instancia reconstruida
+        """
+        return cls(
+            id=datos['id'],
+            parent_id=datos['parent_id'],
+            timestamp=datos['timestamp'],
+            autor=datos['autor'],
+            mensaje=datos['mensaje'],
+            archivos=datos.get('archivos', []),
+        )

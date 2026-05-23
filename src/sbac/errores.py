@@ -41,3 +41,42 @@ class ArchivoYaRastreadoError(SBACError):
 
     def __init__(self, ruta: str) -> None:
         super().__init__(f'El archivo "{ruta}" ya está bajo seguimiento')
+
+class MensajeVacioError(SBACError):
+    """Se intentó hacer commit sin mensaje."""
+
+    def __init__(self) -> None:
+        super().__init__('El mensaje del commit no puede estar vacío')
+
+
+class SinArchivosRastreadosError(SBACError):
+    """Se intentó hacer commit sin archivos bajo seguimiento."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            'No hay archivos bajo seguimiento. '
+            'Usa "sbac add <archivo>" antes de hacer commit'
+        )
+
+
+class SinCambiosError(SBACError):
+    """Se intentó hacer commit sin cambios respecto a la última versión."""
+
+    def __init__(self) -> None:
+        super().__init__('No hay cambios para commitear')
+
+
+class ArchivoRastreadoFaltanteError(SBACError):
+    """Un archivo bajo seguimiento ya no existe en el workspace."""
+
+    def __init__(self, ruta: str) -> None:
+        super().__init__(
+            f'El archivo rastreado "{ruta}" ya no existe en el directorio. '
+            f'Restáuralo o quítalo del seguimiento antes de continuar'
+        )
+
+class ArchivoNoRastreadoError(SBACError):
+    """Se intentó quitar del seguimiento un archivo que no estaba rastreado."""
+
+    def __init__(self, ruta: str) -> None:
+        super().__init__(f'El archivo "{ruta}" no está bajo seguimiento')

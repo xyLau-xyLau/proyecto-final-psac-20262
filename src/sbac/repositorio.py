@@ -1,10 +1,14 @@
 from pathlib import Path
+from datetime import datetime, timezone
 
+from version import Version
 from configuracion import Configuracion
 from manejador_archivos import ManejadorArchivos
 from errores import (RepositorioYaExisteError, RepositorioCreacionError,
                     RepositorioNoInicializadoError, ArchivoNoEncontradoError,
-                    ArchivoYaRastreadoError)
+                    ArchivoYaRastreadoError, MensajeVacioError,
+                    SinArchivosRastreadosError, SinCambiosError,
+                    ArchivoRastreadoFaltanteError, ArchivoNoRastreadoError)
 
 
 class Repositorio:
@@ -46,43 +50,181 @@ class Repositorio:
 
     def add(self, ruta_archivo: str) -> str:
         """
-        Añade un archivo al seguimiento del repositorio.
+        Añade uno o varios archivos al seguimiento del repositorio.
+
+        Comportamiento según el argumento:
+        - '.'          : añade todos los archivos del workspace no rastreados
+        - un directorio: añade recursivamente los archivos que contenga
+        - un archivo   : añade ese archivo individual
 
         Args:
-            ruta_archivo (str): Ruta del archivo relativa al workspace
+            ruta_archivo (str): Ruta de archivo, directorio, o '.'
 
         Returns:
             str: Mensaje de éxito en español
 
         Raises:
             RepositorioNoInicializadoError: Si no existe .sbac/
-            ArchivoNoEncontradoError: Si el archivo no existe en el workspace
-            ArchivoYaRastreadoError: Si el archivo ya está bajo seguimiento
+            ArchivoNoEncontradoError: Si la ruta no existe (caso individual)
+            ArchivoYaRastreadoError: Si el archivo ya está rastreado (caso individual)
         """
         if not self.manejador.existe_repositorio():
             raise RepositorioNoInicializadoError()
 
-        if not self.manejador.existe_archivo(ruta_archivo):
+        if ruta_archivo == '.':
+            return self._add_multiple(self.manejador.listar_workspace())
+
+        # Normalizar: quitar la barra final si la tiene (a/ -> a)
+        ruta_limpia = ruta_archivo.rstrip('/')
+
+        # Caso directorio: expandir recursivamente
+        if self.manejador.existe_directorio(ruta_limpia):
+            archivos_dir = self.manejador.listar_directorio(ruta_limpia)
+            if not archivos_dir:
+                return f'El directorio "{ruta_archivo}" no contiene archivos'
+            return self._add_multiple(archivos_dir)
+
+        # Caso archivo individual
+        if not self.manejador.existe_archivo(ruta_limpia):
             raise ArchivoNoEncontradoError(ruta_archivo)
 
         rastreados = self.manejador.leer_tracked_files()
-        if ruta_archivo in rastreados:
-            raise ArchivoYaRastreadoError(ruta_archivo)
+        if ruta_limpia in rastreados:
+            raise ArchivoYaRastreadoError(ruta_limpia)
 
-        rastreados.append(ruta_archivo)
+        rastreados.append(ruta_limpia)
         self.manejador.escribir_tracked_files(rastreados)
-
-        return f'"{ruta_archivo}" añadido al seguimiento'
+        return f'"{ruta_limpia}" añadido al seguimiento'
     
-    # --- Comandos pendientes ---
 
-    def status(self) -> str:
-        """Pendiente para RF-03."""
-        raise NotImplementedError('Pendiente para RF-03')
+    def rm(self, ruta_archivo: str) -> str:
+        """
+        Quita un archivo del seguimiento del repositorio.
+        No elimina el archivo del workspace, solo deja de rastrearlo.
+        Creada para complementar el comando add.
+
+        Args:
+            ruta_archivo (str): Ruta del archivo a dejar de rastrear
+
+        Returns:
+            str: Mensaje de éxito en español
+
+        Raises:
+            RepositorioNoInicializadoError: Si no existe .sbac/
+            ArchivoNoRastreadoError: Si el archivo no estaba bajo seguimiento
+        """
+        if not self.manejador.existe_repositorio():
+            raise RepositorioNoInicializadoError()
+
+        rastreados = self.manejador.leer_tracked_files()
+        if ruta_archivo not in rastreados:
+            raise ArchivoNoRastreadoError(ruta_archivo)
+
+        rastreados.remove(ruta_archivo)
+        self.manejador.escribir_tracked_files(rastreados)
+        return f'"{ruta_archivo}" eliminado del seguimiento'
+    
 
     def commit(self, mensaje: str) -> str:
-        """Pendiente para RF-04."""
-        raise NotImplementedError('Pendiente para RF-04')
+        """
+        Registra una nueva versión con los archivos bajo seguimiento.
+
+        Args:
+            mensaje (str): Mensaje descriptivo del commit
+
+        Returns:
+            str: Mensaje de éxito en español
+
+        Raises:
+            RepositorioNoInicializadoError: Si no existe .sbac/
+            MensajeVacioError: Si el mensaje está vacío
+            SinArchivosRastreadosError: Si no hay archivos bajo seguimiento
+            ArchivoRastreadoFaltanteError: Si un archivo rastreado fue borrado
+            SinCambiosError: Si no hay cambios respecto a la última versión
+        """
+        if not self.manejador.existe_repositorio():
+            raise RepositorioNoInicializadoError()
+
+        if not mensaje or not mensaje.strip():
+            raise MensajeVacioError()
+
+        rastreados = self.manejador.leer_tracked_files()
+        if not rastreados:
+            raise SinArchivosRastreadosError()
+
+        # Verificar que todos los archivos rastreados existan
+        for archivo in rastreados:
+            if not self.manejador.existe_archivo(archivo):
+                raise ArchivoRastreadoFaltanteError(archivo)
+
+        version_padre = self.manejador.leer_current_version()
+
+        # Si hay versión previa, verificar que haya cambios
+        if version_padre and not self._hay_cambios(rastreados, version_padre):
+            raise SinCambiosError()
+
+        # Crear la nueva versión
+        nuevo_id = self._siguiente_id()
+        dir_files = self.manejador.crear_dir_version(nuevo_id)
+
+        for archivo in rastreados:
+            self.manejador.copiar_a_version(archivo, dir_files)
+
+        config = Configuracion.cargar(self.manejador.ruta_sbac)
+        timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        version = Version(
+            id=nuevo_id,
+            parent_id=version_padre,
+            timestamp=timestamp,
+            autor=config.autor,
+            mensaje=mensaje.strip(),
+            archivos=rastreados,
+        )
+
+        self.manejador.guardar_metadata(nuevo_id, version.a_dict())
+        self.manejador.escribir_current_version(nuevo_id)
+
+        return f'Versión {nuevo_id} registrada: "{mensaje.strip()}"'
+
+
+    def status(self) -> str:
+        """
+        Muestra el estado actual del repositorio: archivos rastreados
+        sin cambios, modificados, eliminados y sin seguimiento.
+
+        Returns:
+            str: Reporte del estado en español
+
+        Raises:
+            RepositorioNoInicializadoError: Si no existe .sbac/
+        """
+        if not self.manejador.existe_repositorio():
+            raise RepositorioNoInicializadoError()
+
+        rastreados = self.manejador.leer_tracked_files()
+        version_actual = self.manejador.leer_current_version()
+
+        sin_cambios: list[str] = []
+        modificados: list[str] = []
+        eliminados: list[str] = []
+
+        for archivo in rastreados:
+            if not self.manejador.existe_archivo(archivo):
+                eliminados.append(archivo)
+            elif version_actual and self._archivo_modificado(archivo, version_actual):
+                modificados.append(archivo)
+            else:
+                sin_cambios.append(archivo)
+
+        # Archivos del workspace que no están rastreados
+        en_workspace = self.manejador.listar_workspace()
+        sin_seguimiento = [a for a in en_workspace if a not in rastreados]
+
+        return self._formatear_status(
+            sin_cambios, modificados, eliminados, sin_seguimiento, version_actual)
+
+    # --- Comandos pendientes ---
 
     def history(self) -> str:
         """Pendiente para RF-05."""
@@ -103,3 +245,143 @@ class Repositorio:
     def checkout(self, version_id: str) -> str:
         """Pendiente para RF-09."""
         raise NotImplementedError('Pendiente para RF-09')
+    
+    # ---> Helpers privados ---
+
+    def _add_todos(self) -> str:
+        """
+        Añade al seguimiento todos los archivos del workspace que
+        aún no estén rastreados.
+
+        Returns:
+            str: Resumen de los archivos añadidos
+        """
+        rastreados = self.manejador.leer_tracked_files()
+        en_workspace = self.manejador.listar_workspace()
+
+        nuevos = [a for a in en_workspace if a not in rastreados]
+
+        if not nuevos:
+            return 'No hay archivos nuevos para añadir al seguimiento'
+
+        rastreados.extend(nuevos)
+        self.manejador.escribir_tracked_files(rastreados)
+
+        lineas = [f'{len(nuevos)} archivo(s) añadido(s) al seguimiento:']
+        for archivo in nuevos:
+            lineas.append(f'  {archivo}')
+        return '\n'.join(lineas)
+    
+    def _add_multiple(self, candidatos: list[str]) -> str:
+        """
+        Añade al seguimiento los archivos de una lista que aún no
+        estén rastreados. Ignora silenciosamente los ya rastreados.
+
+        Args:
+            candidatos (list[str]): Rutas relativas candidatas a añadir
+
+        Returns:
+            str: Resumen de los archivos añadidos
+        """
+        rastreados = self.manejador.leer_tracked_files()
+        nuevos = [a for a in candidatos if a not in rastreados]
+
+        if not nuevos:
+            return 'No hay archivos nuevos para añadir al seguimiento'
+
+        rastreados.extend(nuevos)
+        self.manejador.escribir_tracked_files(rastreados)
+
+        lineas = [f'{len(nuevos)} archivo(s) añadido(s) al seguimiento:']
+        for archivo in nuevos:
+            lineas.append(f'  {archivo}')
+        return '\n'.join(lineas)
+
+    def _siguiente_id(self) -> str:
+        """
+        Calcula el siguiente ID de versión secuencial.
+
+        Returns:
+            str: Siguiente ID (ej. si existen v1, v2 -> 'v3')
+        """
+        versiones = self.manejador.listar_versiones()
+        numeros = [int(v[1:]) for v in versiones if v.startswith('v') and v[1:].isdigit()]
+        siguiente = max(numeros) + 1 if numeros else 1
+        return f'v{siguiente}'
+
+    def _hay_cambios(self, rastreados: list[str], version_id: str) -> bool:
+        """
+        Determina si algún archivo rastreado difiere de la versión dada.
+
+        Args:
+            rastreados (list[str]): Archivos bajo seguimiento
+            version_id (str): Versión contra la cual comparar
+
+        Returns:
+            bool: True si hay al menos un cambio
+        """
+        metadata = self.manejador.leer_metadata(version_id)
+        archivos_version = metadata.get('archivos', [])
+
+        # Cambio si la lista de archivos difiere
+        if set(rastreados) != set(archivos_version):
+            return True
+
+        # Cambio si el contenido de algún archivo es diferente
+        for archivo in rastreados:
+            if self._archivo_modificado(archivo, version_id):
+                return True
+
+        return False
+
+    def _archivo_modificado(self, archivo: str, version_id: str) -> bool:
+        """
+        Compara el contenido actual de un archivo con el de una versión.
+
+        Args:
+            archivo (str): Ruta relativa del archivo
+            version_id (str): Versión contra la cual comparar
+
+        Returns:
+            bool: True si el contenido difiere o el archivo no estaba
+                  en esa versión
+        """
+        metadata = self.manejador.leer_metadata(version_id)
+        if archivo not in metadata.get('archivos', []):
+            return True
+
+        ruta_actual = self.ruta_workspace / archivo
+        contenido_actual = self.manejador.leer_archivo(ruta_actual)
+        contenido_version = self.manejador.leer_archivo_de_version(version_id, archivo)
+        return contenido_actual != contenido_version
+
+    def _formatear_status(self, sin_cambios, modificados, eliminados,
+                          sin_seguimiento, version_actual) -> str:
+        """
+        Construye el reporte de estado.
+
+        Returns:
+            str: Reporte formateado
+        """
+        lineas = []
+        if version_actual:
+            lineas.append(f'Versión actual: {version_actual}')
+        else:
+            lineas.append('Versión actual: ninguna (sin commits todavía)')
+        lineas.append('')
+
+        def bloque(titulo: str, items: list[str]) -> None:
+            lineas.append(f'{titulo}:')
+            if items:
+                for item in items:
+                    lineas.append(f'  {item}')
+            else:
+                lineas.append('  ninguno')
+            lineas.append('')
+
+        bloque('Archivos modificados', modificados)
+        bloque('Archivos eliminados', eliminados)
+        bloque('Archivos sin cambios', sin_cambios)
+        bloque('Archivos sin seguimiento', sin_seguimiento)
+
+        return '\n'.join(lineas).rstrip()
