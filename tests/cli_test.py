@@ -1,7 +1,7 @@
 import pytest
-import enums_ayuda as ea
+from sbac import enums_ayuda as ea
 import sys
-from cli import leer_entrada
+from sbac.cli import leer_entrada
 
 @pytest.fixture
 def test_args() -> list[str]:
