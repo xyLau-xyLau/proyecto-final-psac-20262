@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sbac"
+version = "0.1.0"
+description = "Sistema Básico de Administración de Configuración"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Equipo SBAC - Pruebas de Software y AC 2026-2"}
+]
+
+[project.scripts]
+sbac = "sbac.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

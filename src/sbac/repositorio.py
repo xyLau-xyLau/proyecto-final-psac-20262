@@ -1,10 +1,10 @@
 from pathlib import Path
 from datetime import datetime, timezone
 
-from version import Version
-from configuracion import Configuracion
-from manejador_archivos import ManejadorArchivos
-from errores import (RepositorioYaExisteError, RepositorioCreacionError,
+from .version import Version
+from .configuracion import Configuracion
+from .manejador_archivos import ManejadorArchivos
+from .errores import (RepositorioYaExisteError, RepositorioCreacionError,
                     RepositorioNoInicializadoError, ArchivoNoEncontradoError,
                     ArchivoYaRastreadoError, MensajeVacioError,
                     SinArchivosRastreadosError, SinCambiosError,

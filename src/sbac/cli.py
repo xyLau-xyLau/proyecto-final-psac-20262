@@ -1,9 +1,10 @@
 import sys
-import enums_ayuda as ea
+from . import enums_ayuda as ea
 
 from pathlib import Path
-from repositorio import Repositorio
-from errores import SBACError
+from .repositorio import Repositorio
+from .errores import SBACError
+
 
 def leer_entrada() -> None:
     """
@@ -99,5 +100,11 @@ def _ejecutar(funcion, *args) -> None:
     except SBACError as e:
         print(str(e))
 
-if __name__ == '__main__':
+
+def main() -> None:
+    """Punto de entrada del CLI cuando se invoca como 'sbac'."""
     leer_entrada()
+
+
+if __name__ == '__main__':
+    main()

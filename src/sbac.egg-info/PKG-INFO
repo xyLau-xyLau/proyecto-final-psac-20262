@@ -1,3 +1,11 @@
+Metadata-Version: 2.4
+Name: sbac
+Version: 0.1.0
+Summary: Sistema Básico de Administración de Configuración
+Author: Equipo SBAC - Pruebas de Software y AC 2026-2
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+
 # Sistema Básico de Administración de Configuración(SBAC)
 
 ## Datos de la institución y asignatura
@@ -18,17 +26,3 @@
 ## Descripción del proyecto
 
 ## Instrucciones
-
-### Instalar el SBAC
-```bash
-pip install --upgrade pip setuptools
-pip install -e .
-```
-
-### Verificar la instalación
-
-```bash
-sbac --help
-```
-
-Si la instalación fue correcta, se mostrará la ayuda con la lista de comandos disponibles.
