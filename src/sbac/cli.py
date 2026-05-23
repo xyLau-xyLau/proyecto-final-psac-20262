@@ -1,9 +1,10 @@
 import sys
-import enums_ayuda as ea
+from . import enums_ayuda as ea
 
 from pathlib import Path
-from repositorio import Repositorio
-from errores import SBACError
+from .repositorio import Repositorio
+from .errores import SBACError
+
 
 def leer_entrada() -> None:
     """
@@ -51,6 +52,12 @@ def leer_entrada() -> None:
             print(ea.error_cantidad_args(
                       ea.Error.REQUIERE_UN_ARGUMENTO,
                       ea.Ayuda.ADD))
+        case ('rm', 3):
+            _ejecutar(repo.rm, args[2])
+        case ('rm', _):
+            print(ea.error_cantidad_args(
+                      ea.Error.REQUIERE_UN_ARGUMENTO,
+                      ea.Ayuda.ADD))
         case ('commit', 3):
             _ejecutar(repo.commit, args[2])
         case ('commit', _):
@@ -93,4 +100,11 @@ def _ejecutar(funcion, *args) -> None:
     except SBACError as e:
         print(str(e))
 
-leer_entrada()
+
+def main() -> None:
+    """Punto de entrada del CLI cuando se invoca como 'sbac'."""
+    leer_entrada()
+
+
+if __name__ == '__main__':
+    main()

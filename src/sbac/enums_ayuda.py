@@ -26,6 +26,7 @@ class Ayuda(Enum):
     LIST_BASELINES = 'list-baselines     | Listar líneas base'
     DIFF = 'diff <v1> <v2>     | Ver diferencias entre versiones'
     CHECKOUT = 'checkout <version> | Regresar a versión específica'
+    RM = 'rm <archivo>       | Quita un archivo del seguimiento'
 
 def ayuda() -> str:
     """
