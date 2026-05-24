@@ -82,7 +82,6 @@ def test_status_commit(tmp_path: Path) -> None:
     archivo_prueba.write_text("Bye, World!")
     assert repo.status() == repo._formatear_status(
         [], [NOMBRE_ARCHIVO], [], [], "v1")
-    repo.add(NOMBRE_ARCHIVO)
     repo.commit("test_2")
     assert repo.status() == repo._formatear_status(
         [NOMBRE_ARCHIVO], [], [], [], "v2")
@@ -170,7 +169,6 @@ def test_commit_metadatos_correctos(tmp_path: Path) -> None:
     with pytest.raises(SinCambiosError):
         repo.commit("test_2")
     archivo_prueba.write_text("Bye, World!")
-    repo.add(NOMBRE_ARCHIVO)
     commit_msj = "test_2"
     repo.commit(commit_msj)
     json_data = open(
