@@ -336,3 +336,114 @@ def test_add_directorio_agrega_archivos_recursivamente(tmp_path: Path) -> None:
         "docs/a.txt",
         "docs/b.txt",
     ]
+
+def test_rm_sin_init(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que se levante excepción
+    si se intenta usar rm sin inicializar el repositorio
+    """
+    repo = Repositorio(tmp_path)
+
+    with pytest.raises(RepositorioNoInicializadoError):
+        repo.rm(NOMBRE_ARCHIVO)
+
+
+def test_rm_archivo_no_rastreado(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que se levante excepción
+    cuando el archivo no está bajo seguimiento
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
+    archivo = tmp_path / NOMBRE_ARCHIVO
+    archivo.write_text(MENSAJE_GENERICO)
+
+    with pytest.raises(ArchivoNoRastreadoError):
+        repo.rm(NOMBRE_ARCHIVO)
+
+
+def test_rm_archivo_correctamente(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que un archivo
+    se elimine correctamente del seguimiento
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
+    archivo = tmp_path / NOMBRE_ARCHIVO
+    archivo.write_text(MENSAJE_GENERICO)
+
+    repo.add(NOMBRE_ARCHIVO)
+
+    assert repo.status() == repo._formatear_status(
+        [NOMBRE_ARCHIVO], [], [], [], None
+    )
+
+    repo.rm(NOMBRE_ARCHIVO)
+
+    assert repo.status() == repo._formatear_status(
+        [], [], [], [NOMBRE_ARCHIVO], None
+    )
+
+
+def test_rm_no_elimina_archivo_fisico(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que rm no elimine
+    el archivo del sistema de archivos
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
+    archivo = tmp_path / NOMBRE_ARCHIVO
+    archivo.write_text(MENSAJE_GENERICO)
+
+    repo.add(NOMBRE_ARCHIVO)
+    repo.rm(NOMBRE_ARCHIVO)
+
+    # El archivo sigue existiendo en el workspace
+    assert archivo.exists()
+
+
+def test_rm_y_readd_funciona(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que un archivo eliminado
+    del seguimiento pueda volver a agregarse
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
+    archivo = tmp_path / NOMBRE_ARCHIVO
+    archivo.write_text(MENSAJE_GENERICO)
+
+    repo.add(NOMBRE_ARCHIVO)
+    repo.rm(NOMBRE_ARCHIVO)
+
+    repo.add(NOMBRE_ARCHIVO)
+
+    assert repo.status() == repo._formatear_status(
+        [NOMBRE_ARCHIVO], [], [], [], None
+    )
+
+
+def test_rm_actualiza_tracked_files(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que rm actualiza correctamente
+    el archivo de tracking interno
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
+    archivo1 = tmp_path / "a.txt"
+    archivo2 = tmp_path / "b.txt"
+    archivo1.write_text("a")
+    archivo2.write_text("b")
+
+    repo.add("a.txt")
+    repo.add("b.txt")
+
+    repo.rm("a.txt")
+
+    rastreados = repo.manejador.leer_tracked_files()
+
+    assert rastreados == ["b.txt"]
