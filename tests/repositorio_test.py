@@ -336,6 +336,76 @@ def test_add_directorio_agrega_archivos_recursivamente(tmp_path: Path) -> None:
         "docs/a.txt",
         "docs/b.txt",
     ]
+    
+def test_add_multiple_sin_nuevos_archivos(tmp_path: Path) -> None:
+    """
+    Verifica que _add_multiple no agregue archivos cuando todos
+    los candidatos ya están previamente rastreados.
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
+    archivo = tmp_path / "a.txt"
+    archivo.write_text("contenido")
+
+    repo.manejador.escribir_tracked_files(["a.txt"])
+
+    resultado = repo._add_multiple(["a.txt"])
+
+    assert resultado == "No hay archivos nuevos para añadir al seguimiento"
+    assert repo.manejador.leer_tracked_files() == ["a.txt"]
+    
+def test_add_multiple_mezcla_parcial(tmp_path: Path) -> None:
+    """
+    Verifica que _add_multiple agregue únicamente los archivos
+    no rastreados, ignorando los ya existentes.
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
+    (tmp_path / "a.txt").write_text("A")
+    (tmp_path / "b.txt").write_text("B")
+
+    repo.manejador.escribir_tracked_files(["a.txt"])
+
+    resultado = repo._add_multiple(["a.txt", "b.txt"])
+
+    tracked = repo.manejador.leer_tracked_files()
+    assert sorted(tracked) == ["a.txt", "b.txt"]
+
+    assert "1 archivo(s) añadido(s) al seguimiento:" in resultado
+    assert "b.txt" in resultado
+
+def test_add_todos_workspace_vacio(tmp_path: Path) -> None:
+    """
+    Verifica el comportamiento de _add_todos cuando el workspace
+    no contiene archivos.
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
+    resultado = repo._add_todos()
+
+    assert resultado == "No hay archivos nuevos para añadir al seguimiento"
+    assert repo.manejador.leer_tracked_files() == []
+
+def test_add_todos_todo_ya_rastreado(tmp_path: Path) -> None:
+    """
+    Verifica que _add_todos no vuelva a agregar archivos que
+    ya están completamente rastreados en el workspace.
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
+    (tmp_path / "a.txt").write_text("A")
+    (tmp_path / "b.txt").write_text("B")
+
+    repo.manejador.escribir_tracked_files(["a.txt", "b.txt"])
+
+    resultado = repo._add_todos()
+
+    assert resultado == "No hay archivos nuevos para añadir al seguimiento"
+    assert sorted(repo.manejador.leer_tracked_files()) == ["a.txt", "b.txt"]
 
 def test_init_repositorio_correctamente(tmp_path: Path) -> None:
     """
