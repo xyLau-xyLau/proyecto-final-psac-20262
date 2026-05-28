@@ -406,3 +406,54 @@ def test_add_todos_todo_ya_rastreado(tmp_path: Path) -> None:
 
     assert resultado == "No hay archivos nuevos para añadir al seguimiento"
     assert sorted(repo.manejador.leer_tracked_files()) == ["a.txt", "b.txt"]
+
+def test_init_repositorio_correctamente(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que se inicialice correctamente
+    la estructura del repositorio SBAC
+    """
+    repo = Repositorio(tmp_path)
+
+    mensaje = repo.init()
+
+    assert mensaje == 'Repositorio SBAC inicializado en .sbac/'
+
+    assert (tmp_path / ".sbac").exists()
+    assert (tmp_path / ".sbac/versions").exists()
+    assert (tmp_path / ".sbac/baselines").exists()
+    assert (tmp_path / ".sbac/config.json").exists()
+    assert (tmp_path / ".sbac/tracked-files").exists()
+
+
+def test_init_repo_ya_existente(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que se levante excepción
+    si el repositorio ya fue inicializado
+    """
+    repo = Repositorio(tmp_path)
+
+    repo.init()
+
+    with pytest.raises(RepositorioYaExisteError):
+        repo.init()
+
+
+def test_init_creacion_error(tmp_path: Path, monkeypatch) -> None:
+    """
+    Prueba para verificar que se levante excepción
+    cuando ocurre un error creando la estructura
+    """
+
+    repo = Repositorio(tmp_path)
+
+    def mock_crear_estructura() -> None:
+        raise OSError("Error de creación")
+
+    monkeypatch.setattr(
+        repo.manejador,
+        "crear_estructura",
+        mock_crear_estructura
+    )
+
+    with pytest.raises(RepositorioCreacionError):
+        repo.init()
