@@ -224,11 +224,42 @@ class Repositorio:
         return self._formatear_status(
             sin_cambios, modificados, eliminados, sin_seguimiento, version_actual)
 
-    # --- Comandos pendientes ---
-
     def history(self) -> str:
-        """Pendiente para RF-05."""
-        raise NotImplementedError('Pendiente para RF-05')
+        """
+        Muestra el historial completo de versiones en orden cronológico.
+        
+        Returns:
+        str: Historial de versiones en orden cronológico
+
+        Raises:
+            RepositorioNoInicializadoError: Si no existe .sbac/
+        """
+        if not self.manejador.existe_repositorio():
+            raise RepositorioNoInicializadoError()
+        
+        #usando lambda porque sorted no evalua el valor numerico de los numeros en un string y pondría 10 antes de 2
+        versiones_ids = sorted(
+            self.manejador.listar_versiones(),
+            key=lambda v: int(v[1:])
+        )
+        if not versiones_ids:
+            return 'No hay versiones.'
+        
+        resultado = ['Historial de versiones:']
+        
+        for version_id in versiones_ids:
+            metadata = self.manejador.leer_metadata(version_id)
+            version = Version.desde_dict(metadata)
+            resultado.append(
+                f'{version.id} | '
+                f'{version.timestamp} | '
+                f'{version.autor} | '
+                f'{version.mensaje}'
+            )
+            
+        return '\n'.join(resultado)
+    
+    # --- Comandos pendientes ---
 
     def baseline(self, nombre: str) -> str:
         """Pendiente para RF-06."""
