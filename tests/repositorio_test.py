@@ -295,7 +295,6 @@ def test_add_directorio_con_slash_final(tmp_path: Path) -> None:
         ["src/main.py"], [], [], [], None
     )
     
-    
 def test_add_punto_agrega_todos_los_archivos(tmp_path: Path) -> None:
     """
     Prueba para verificar que add(".")
@@ -336,6 +335,129 @@ def test_add_directorio_agrega_archivos_recursivamente(tmp_path: Path) -> None:
         "docs/a.txt",
         "docs/b.txt",
     ]
+    
+def test_add_multiple_sin_nuevos_archivos(tmp_path: Path) -> None:
+    """
+    Verifica que _add_multiple no agregue archivos cuando todos
+    los candidatos ya están previamente rastreados.
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
+    archivo = tmp_path / "a.txt"
+    archivo.write_text("contenido")
+
+    repo.manejador.escribir_tracked_files(["a.txt"])
+
+    resultado = repo._add_multiple(["a.txt"])
+
+    assert resultado == "No hay archivos nuevos para añadir al seguimiento"
+    assert repo.manejador.leer_tracked_files() == ["a.txt"]
+    
+def test_add_multiple_mezcla_parcial(tmp_path: Path) -> None:
+    """
+    Verifica que _add_multiple agregue únicamente los archivos
+    no rastreados, ignorando los ya existentes.
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+    
+    (tmp_path / "a.txt").write_text("A")
+    (tmp_path / "b.txt").write_text("B")
+
+    repo.manejador.escribir_tracked_files(["a.txt"])
+
+    resultado = repo._add_multiple(["a.txt", "b.txt"])
+
+    tracked = repo.manejador.leer_tracked_files()
+    assert sorted(tracked) == ["a.txt", "b.txt"]
+
+    assert "1 archivo(s) añadido(s) al seguimiento:" in resultado
+    assert "b.txt" in resultado
+    
+def test_add_todos_workspace_vacio(tmp_path: Path) -> None:
+    """
+    Verifica el comportamiento de _add_todos cuando el workspace
+    no contiene archivos.
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+    
+    (tmp_path / "a.txt").write_text("A")
+    (tmp_path / "b.txt").write_text("B")
+    
+    repo.manejador.escribir_tracked_files(["a.txt", "b.txt"])
+    
+    resultado = repo._add_todos()
+    
+    assert resultado == "No hay archivos nuevos para añadir al seguimiento"
+    assert repo.manejador.leer_tracked_files() == []
+    
+def test_add_todos_todo_ya_rastreado(tmp_path: Path) -> None:
+    """
+    Verifica que _add_todos no vuelva a agregar archivos que
+    ya están completamente rastreados en el workspace.
+    """
+    (tmp_path / "a.txt").write_text("A")
+    (tmp_path / "b.txt").write_text("B")
+
+    repo.manejador.escribir_tracked_files(["a.txt", "b.txt"])
+
+    resultado = repo._add_todos()
+
+    assert resultado == "No hay archivos nuevos para añadir al seguimiento"
+    assert sorted(repo.manejador.leer_tracked_files()) == ["a.txt", "b.txt"]
+
+def test_init_repositorio_correctamente(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que se inicialice correctamente
+    la estructura del repositorio SBAC
+    """
+    repo = Repositorio(tmp_path)
+
+    mensaje = repo.init()
+
+    assert mensaje == 'Repositorio SBAC inicializado en .sbac/'
+
+    assert (tmp_path / ".sbac").exists()
+    assert (tmp_path / ".sbac/versions").exists()
+    assert (tmp_path / ".sbac/baselines").exists()
+    assert (tmp_path / ".sbac/config.json").exists()
+    assert (tmp_path / ".sbac/tracked-files").exists()
+
+
+def test_init_repo_ya_existente(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que se levante excepción
+    si el repositorio ya fue inicializado
+    """
+    repo = Repositorio(tmp_path)
+
+    repo.init()
+
+    with pytest.raises(RepositorioYaExisteError):
+        repo.init()
+
+
+def test_init_creacion_error(tmp_path: Path, monkeypatch) -> None:
+    """
+    Prueba para verificar que se levante excepción
+    cuando ocurre un error creando la estructura
+    """
+
+    repo = Repositorio(tmp_path)
+
+    def mock_crear_estructura() -> None:
+        raise OSError("Error de creación")
+
+    monkeypatch.setattr(
+        repo.manejador,
+        "crear_estructura",
+        mock_crear_estructura
+    )
+
+    with pytest.raises(RepositorioCreacionError):
+        repo.init()
 
 def test_rm_sin_init(tmp_path: Path) -> None:
     """
@@ -353,15 +475,11 @@ def test_rm_archivo_no_rastreado(tmp_path: Path) -> None:
     Prueba para verificar que se levante excepción
     cuando el archivo no está bajo seguimiento
     """
-    repo = Repositorio(tmp_path)
-    repo.init()
-
     archivo = tmp_path / NOMBRE_ARCHIVO
     archivo.write_text(MENSAJE_GENERICO)
 
     with pytest.raises(ArchivoNoRastreadoError):
         repo.rm(NOMBRE_ARCHIVO)
-
 
 def test_rm_archivo_correctamente(tmp_path: Path) -> None:
     """
@@ -370,31 +488,24 @@ def test_rm_archivo_correctamente(tmp_path: Path) -> None:
     """
     repo = Repositorio(tmp_path)
     repo.init()
-
     archivo = tmp_path / NOMBRE_ARCHIVO
     archivo.write_text(MENSAJE_GENERICO)
-
+    
     repo.add(NOMBRE_ARCHIVO)
-
     assert repo.status() == repo._formatear_status(
         [NOMBRE_ARCHIVO], [], [], [], None
     )
-
-    repo.rm(NOMBRE_ARCHIVO)
-
+    
+    repo.rm(NOMBRE_ARCHIVO
     assert repo.status() == repo._formatear_status(
         [], [], [], [NOMBRE_ARCHIVO], None
     )
-
 
 def test_rm_no_elimina_archivo_fisico(tmp_path: Path) -> None:
     """
     Prueba para verificar que rm no elimine
     el archivo del sistema de archivos
     """
-    repo = Repositorio(tmp_path)
-    repo.init()
-
     archivo = tmp_path / NOMBRE_ARCHIVO
     archivo.write_text(MENSAJE_GENERICO)
 
@@ -424,7 +535,6 @@ def test_rm_y_readd_funciona(tmp_path: Path) -> None:
     assert repo.status() == repo._formatear_status(
         [NOMBRE_ARCHIVO], [], [], [], None
     )
-
 
 def test_rm_actualiza_tracked_files(tmp_path: Path) -> None:
     """
