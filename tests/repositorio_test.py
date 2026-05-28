@@ -353,7 +353,7 @@ def test_add_multiple_sin_nuevos_archivos(tmp_path: Path) -> None:
 
     assert resultado == "No hay archivos nuevos para añadir al seguimiento"
     assert repo.manejador.leer_tracked_files() == ["a.txt"]
-    
+
 def test_add_multiple_mezcla_parcial(tmp_path: Path) -> None:
     """
     Verifica que _add_multiple agregue únicamente los archivos
@@ -361,7 +361,7 @@ def test_add_multiple_mezcla_parcial(tmp_path: Path) -> None:
     """
     repo = Repositorio(tmp_path)
     repo.init()
-    
+
     (tmp_path / "a.txt").write_text("A")
     (tmp_path / "b.txt").write_text("B")
 
@@ -374,7 +374,7 @@ def test_add_multiple_mezcla_parcial(tmp_path: Path) -> None:
 
     assert "1 archivo(s) añadido(s) al seguimiento:" in resultado
     assert "b.txt" in resultado
-    
+
 def test_add_todos_workspace_vacio(tmp_path: Path) -> None:
     """
     Verifica el comportamiento de _add_todos cuando el workspace
@@ -382,22 +382,20 @@ def test_add_todos_workspace_vacio(tmp_path: Path) -> None:
     """
     repo = Repositorio(tmp_path)
     repo.init()
-    
-    (tmp_path / "a.txt").write_text("A")
-    (tmp_path / "b.txt").write_text("B")
-    
-    repo.manejador.escribir_tracked_files(["a.txt", "b.txt"])
-    
+
     resultado = repo._add_todos()
-    
+
     assert resultado == "No hay archivos nuevos para añadir al seguimiento"
     assert repo.manejador.leer_tracked_files() == []
-    
+
 def test_add_todos_todo_ya_rastreado(tmp_path: Path) -> None:
     """
     Verifica que _add_todos no vuelva a agregar archivos que
     ya están completamente rastreados en el workspace.
     """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
     (tmp_path / "a.txt").write_text("A")
     (tmp_path / "b.txt").write_text("B")
 
@@ -475,11 +473,15 @@ def test_rm_archivo_no_rastreado(tmp_path: Path) -> None:
     Prueba para verificar que se levante excepción
     cuando el archivo no está bajo seguimiento
     """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
     archivo = tmp_path / NOMBRE_ARCHIVO
     archivo.write_text(MENSAJE_GENERICO)
 
     with pytest.raises(ArchivoNoRastreadoError):
         repo.rm(NOMBRE_ARCHIVO)
+
 
 def test_rm_archivo_correctamente(tmp_path: Path) -> None:
     """
@@ -488,24 +490,31 @@ def test_rm_archivo_correctamente(tmp_path: Path) -> None:
     """
     repo = Repositorio(tmp_path)
     repo.init()
+
     archivo = tmp_path / NOMBRE_ARCHIVO
     archivo.write_text(MENSAJE_GENERICO)
-    
+
     repo.add(NOMBRE_ARCHIVO)
+
     assert repo.status() == repo._formatear_status(
         [NOMBRE_ARCHIVO], [], [], [], None
     )
-    
-    repo.rm(NOMBRE_ARCHIVO
+
+    repo.rm(NOMBRE_ARCHIVO)
+
     assert repo.status() == repo._formatear_status(
         [], [], [], [NOMBRE_ARCHIVO], None
     )
+
 
 def test_rm_no_elimina_archivo_fisico(tmp_path: Path) -> None:
     """
     Prueba para verificar que rm no elimine
     el archivo del sistema de archivos
     """
+    repo = Repositorio(tmp_path)
+    repo.init()
+
     archivo = tmp_path / NOMBRE_ARCHIVO
     archivo.write_text(MENSAJE_GENERICO)
 
@@ -535,6 +544,7 @@ def test_rm_y_readd_funciona(tmp_path: Path) -> None:
     assert repo.status() == repo._formatear_status(
         [NOMBRE_ARCHIVO], [], [], [], None
     )
+
 
 def test_rm_actualiza_tracked_files(tmp_path: Path) -> None:
     """
