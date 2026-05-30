@@ -26,3 +26,17 @@ Description-Content-Type: text/markdown
 ## Descripción del proyecto
 
 ## Instrucciones
+
+### Instalar el SBAC
+```bash
+pip install --upgrade pip setuptools
+pip install -e .
+```
+
+### Verificar la instalación
+
+```bash
+sbac --help
+```
+
+Si la instalación fue correcta, se mostrará la ayuda con la lista de comandos disponibles.

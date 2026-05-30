@@ -296,192 +296,192 @@ class Repositorio:
             f'creada sobre versión {version_actual}'
         )
 
-def list_baselines(self) -> str:
-    """
-    Lista las líneas base registradas.
+    def list_baselines(self) -> str:
+        """
+        Lista las líneas base registradas.
 
-    Returns:
-        str: Líneas base disponibles
+        Returns:
+            str: Líneas base disponibles
 
-    Raises:
-        RepositorioNoInicializadoError: Si no existe .sbac/
-    """
-    if not self.manejador.existe_repositorio():
-        raise RepositorioNoInicializadoError()
+        Raises:
+            RepositorioNoInicializadoError: Si no existe .sbac/
+        """
+        if not self.manejador.existe_repositorio():
+            raise RepositorioNoInicializadoError()
 
-    baselines = (
-        self.manejador.ruta_sbac /
-        self.manejador.SUBDIR_BASELINES
-    )
-
-    archivos = sorted(baselines.glob('*.txt'))
-
-    if not archivos:
-        return 'No hay líneas base.'
-
-    resultado = ['Líneas base:']
-
-    for archivo in archivos:
-
-        nombre = archivo.stem
-
-        version = self.manejador.leer_archivo(archivo).strip()
-
-        resultado.append(
-            f'{nombre} -> {version}'
+        baselines = (
+            self.manejador.ruta_sbac /
+            self.manejador.SUBDIR_BASELINES
         )
 
-    return '\n'.join(resultado)
+        archivos = sorted(baselines.glob('*.txt'))
 
-def diff(self, v1: str, v2: str) -> str:
-    """
-    Compara dos versiones línea por línea.
+        if not archivos:
+            return 'No hay líneas base.'
 
-    Args:
-        v1 (str): Primera versión
-        v2 (str): Segunda versión
+        resultado = ['Líneas base:']
 
-    Returns:
-        str: Diferencias entre versiones
+        for archivo in archivos:
 
-    Raises:
-        RepositorioNoInicializadoError: Si no existe .sbac/
-    """
-    if not self.manejador.existe_repositorio():
-        raise RepositorioNoInicializadoError()
+            nombre = archivo.stem
 
-    versiones = self.manejador.listar_versiones()
+            version = self.manejador.leer_archivo(archivo).strip()
 
-    if v1 not in versiones or v2 not in versiones:
-        return 'Una o ambas versiones no se encontraron.'
+            resultado.append(
+                f'{nombre} -> {version}'
+            )
 
-    metadata_v1 = Version.desde_dict(
-        self.manejador.leer_metadata(v1)
-    )
+        return '\n'.join(resultado)
 
-    metadata_v2 = Version.desde_dict(
-        self.manejador.leer_metadata(v2)
-    )
+    def diff(self, v1: str, v2: str) -> str:
+        """
+        Compara dos versiones línea por línea.
 
-    archivos = sorted(
-        list(set(metadata_v1.archivos + metadata_v2.archivos))
-    )
-    
-    resultado = []
+        Args:
+            v1 (str): Primera versión
+            v2 (str): Segunda versión
 
-    for archivo in archivos:
+        Returns:
+            str: Diferencias entre versiones
 
-        contenido_v1 = ''
-        contenido_v2 = ''
+        Raises:
+            RepositorioNoInicializadoError: Si no existe .sbac/
+        """
+        if not self.manejador.existe_repositorio():
+            raise RepositorioNoInicializadoError()
 
-        if archivo in metadata_v1.archivos:
-            contenido_v1 = self.manejador.leer_archivo_de_version(
-                v1,
+        versiones = self.manejador.listar_versiones()
+
+        if v1 not in versiones or v2 not in versiones:
+            return 'Una o ambas versiones no se encontraron.'
+
+        metadata_v1 = Version.desde_dict(
+            self.manejador.leer_metadata(v1)
+        )
+
+        metadata_v2 = Version.desde_dict(
+            self.manejador.leer_metadata(v2)
+        )
+
+        archivos = sorted(
+            list(set(metadata_v1.archivos + metadata_v2.archivos))
+        )
+        
+        resultado = []
+
+        for archivo in archivos:
+
+            contenido_v1 = ''
+            contenido_v2 = ''
+
+            if archivo in metadata_v1.archivos:
+                contenido_v1 = self.manejador.leer_archivo_de_version(
+                    v1,
+                    archivo
+                )
+
+            if archivo in metadata_v2.archivos:
+                contenido_v2 = self.manejador.leer_archivo_de_version(
+                    v2,
+                    archivo
+                )
+
+            lineas_v1 = contenido_v1.splitlines()
+            lineas_v2 = contenido_v2.splitlines()
+
+            max_lineas = max(
+                len(lineas_v1),
+                len(lineas_v2)
+            )
+
+            for i in range(max_lineas):
+
+                linea1 = (
+                    lineas_v1[i]
+                    if i < len(lineas_v1)
+                    else ''
+                )
+
+                linea2 = (
+                    lineas_v2[i]
+                    if i < len(lineas_v2)
+                    else ''
+                )
+
+                if linea1 != linea2:
+
+                    resultado.append(
+                        f'[{archivo}] Línea {i + 1}'
+                    )
+
+                    resultado.append(
+                        f'- {v1}: {linea1}'
+                    )
+
+                    resultado.append(
+                        f'+ {v2}: {linea2}'
+                    )
+
+        if not resultado:
+            return 'Las versiones son iguales.'
+
+        return '\n'.join(resultado)
+
+    def checkout(self, version_id: str) -> str:
+        """
+        Regresa el repositorio al estado de una versión específica.
+
+        Args:
+            version_id (str): ID de versión
+
+        Returns:
+            str: Mensaje de éxito
+
+        Raises:
+            RepositorioNoInicializadoError: Si no existe .sbac/
+        """
+        if not self.manejador.existe_repositorio():
+            raise RepositorioNoInicializadoError()
+
+        versiones = self.manejador.listar_versiones()
+
+        if version_id not in versiones:
+            return f'La versión "{version_id}" no se encontró.'
+
+        metadata = self.manejador.leer_metadata(version_id)
+
+        version = Version.desde_dict(metadata)
+
+        for archivo in version.archivos:
+
+            contenido = self.manejador.leer_archivo_de_version(
+                version_id,
                 archivo
             )
 
-        if archivo in metadata_v2.archivos:
-            contenido_v2 = self.manejador.leer_archivo_de_version(
-                v2,
+            ruta_destino = (
+                self.ruta_workspace /
                 archivo
             )
 
-        lineas_v1 = contenido_v1.splitlines()
-        lineas_v2 = contenido_v2.splitlines()
-
-        max_lineas = max(
-            len(lineas_v1),
-            len(lineas_v2)
-        )
-
-        for i in range(max_lineas):
-
-            linea1 = (
-                lineas_v1[i]
-                if i < len(lineas_v1)
-                else ''
+            ruta_destino.parent.mkdir(
+                parents=True,
+                exist_ok=True
             )
 
-            linea2 = (
-                lineas_v2[i]
-                if i < len(lineas_v2)
-                else ''
+            self.manejador.escribir_archivo(
+                ruta_destino,
+                contenido
             )
 
-            if linea1 != linea2:
-
-                resultado.append(
-                    f'[{archivo}] Línea {i + 1}'
-                )
-
-                resultado.append(
-                    f'- {v1}: {linea1}'
-                )
-
-                resultado.append(
-                    f'+ {v2}: {linea2}'
-                )
-
-    if not resultado:
-        return 'Las versiones son iguales.'
-
-    return '\n'.join(resultado)
-
-def checkout(self, version_id: str) -> str:
-    """
-    Regresa el repositorio al estado de una versión específica.
-
-    Args:
-        version_id (str): ID de versión
-
-    Returns:
-        str: Mensaje de éxito
-
-    Raises:
-        RepositorioNoInicializadoError: Si no existe .sbac/
-    """
-    if not self.manejador.existe_repositorio():
-        raise RepositorioNoInicializadoError()
-
-    versiones = self.manejador.listar_versiones()
-
-    if version_id not in versiones:
-        return f'La versión "{version_id}" no se encontró.'
-
-    metadata = self.manejador.leer_metadata(version_id)
-
-    version = Version.desde_dict(metadata)
-
-    for archivo in version.archivos:
-
-        contenido = self.manejador.leer_archivo_de_version(
-            version_id,
-            archivo
+        self.manejador.escribir_current_version(
+            version_id
         )
 
-        ruta_destino = (
-            self.ruta_workspace /
-            archivo
+        return (
+            f'Repositorio restaurado '
+            f'a la versión {version_id}'
         )
-
-        ruta_destino.parent.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-
-        self.manejador.escribir_archivo(
-            ruta_destino,
-            contenido
-        )
-
-    self.manejador.escribir_current_version(
-        version_id
-    )
-
-    return (
-        f'Repositorio restaurado '
-        f'a la versión {version_id}'
-    )
     
     # ---> Helpers privados ---
 
