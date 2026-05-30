@@ -618,3 +618,202 @@ def test_history(tmp_path: Path) -> None:
     assert cadenas[2].endswith("Segundo commit")
     assert cadenas[3].startswith("v3")
     assert cadenas[3].endswith("Tercer commit")
+
+#----- Baseline tests
+def test_baseline_error_repositorio_no_inicializado(tmp_path: Path) -> None:
+    """Validar que falle si el repositorio no está inicializado."""
+    repo = Repositorio(tmp_path)
+    with pytest.raises(RepositorioNoInicializadoError):
+        repo.baseline("Version_Invalida")
+
+def test_baseline_error_nombre_vacio(tmp_path: Path) -> None:
+    """Validar que falle si el nombre enviado es vacío o espacios."""
+    repo = Repositorio(tmp_path)
+    repo.init()
+    with pytest.raises(ValueError, match="El nombre de la línea base no puede estar vacío"):
+        repo.baseline("   ")
+
+def test_baseline_error_sin_versiones(tmp_path: Path) -> None:
+    """Validar que falle si no hay un historial de commits previos."""
+    repo = Repositorio(tmp_path)
+    repo.init()
+    with pytest.raises(ValueError, match="No se puede crear una línea base si no existen versiones"):
+        repo.baseline("Release_1.0")
+
+def test_baseline_creacion_exitosa(tmp_path: Path) -> None:
+    """Validar el flujo correcto de registro y persistencia en formato .txt."""
+    repo = Repositorio(tmp_path)
+    repo.init()
+    
+    # Simular cambios para poder ejecutar un commit funcional en la rama develop
+    archivo = tmp_path / "main.py"
+    archivo.write_text("print('Producción v1')")
+    
+    repo.add("main.py")
+    repo.commit("Primer commit estable")
+    
+    nombre_bl = "Hito_Proyecto_1"
+    mensaje_resultado = repo.baseline(nombre_bl)
+    
+    # Comprobar salida esperada
+    assert f'Línea base "{nombre_bl}" creada sobre versión v1' in mensaje_resultado
+    
+    # Comprobar la creación física del archivo .txt mapeado en esta versión de develop
+    archivo_txt_esperado = tmp_path / ".sbac" / "baselines" / f"{nombre_bl}.txt"
+    assert archivo_txt_esperado.exists()
+    
+    # Comprobar que contenga exactamente el ID de la versión apuntada
+    contenido = archivo_txt_esperado.read_text().strip()
+    assert contenido == "v1"
+
+#----- Checkout tests|
+def test_checkout_error_repositorio_no_inicializado(tmp_path: Path) -> None:
+    """Validar que falle si el repositorio no está inicializado."""
+    repo = Repositorio(tmp_path)
+    with pytest.raises(RepositorioNoInicializadoError):
+        repo.checkout("v1")
+
+
+def test_checkout_error_version_no_encontrada(tmp_path: Path) -> None:
+    """Validar que se lance ValueError si se solicita una versión inexistente."""
+    repo = Repositorio(tmp_path)
+    repo.init()
+    
+    # Crear un commit previo para que el historial no esté completamente vacío
+    archivo = tmp_path / "main.py"
+    archivo.write_text("print('v1')")
+    repo.add("main.py")
+    repo.commit("Primer commit")
+    
+    # Intentar viajar a una versión 'v99' que no existe
+    with pytest.raises(ValueError, match='La versión "v99" no se encontró.'):
+        repo.checkout("v99")
+
+
+def test_checkout_restauracion_exitosa(tmp_path: Path) -> None:
+    """Validar que el repositorio restaure correctamente el contenido de un archivo anterior."""
+    repo = Repositorio(tmp_path)
+    repo.init()
+    
+    archivo_prueba = tmp_path / "codigo.py"
+    
+    # 1. Crear Versión 1 (v1)
+    archivo_prueba.write_text("contenido original v1")
+    repo.add("codigo.py")
+    repo.commit("Commit inicial v1")
+    
+    # 2. Modificar el archivo y crear Versión 2 (v2)
+    archivo_prueba.write_text("contenido modificado v2")
+    repo.commit("Commit secundario v2")
+    
+    # Verificar que el archivo en el espacio de trabajo actualmente posee el contenido de v2
+    assert archivo_prueba.read_text() == "contenido modificado v2"
+    
+    # 3. Ejecutar Checkout hacia v1
+    mensaje_resultado = repo.checkout("v1")
+    
+    # 4. Aserciones
+    assert "Repositorio restaurado a la versión v1" in mensaje_resultado
+    
+    # Verificar que el contenido del archivo regresó físicamente al estado de v1
+    assert archivo_prueba.read_text() == "contenido original v1"
+    
+    # Verificar que la versión actual registrada en el sistema sea v1
+    assert repo.manejador.leer_current_version() == "v1"
+
+#----- Tests de list-baselines
+def test_list_baselines_error_repositorio_no_inicializado(tmp_path: Path) -> None:
+    """ Validar que falle si se intenta listar líneas base sin inicializar el sistema. """
+    repo = Repositorio(tmp_path)
+    with pytest.raises(RepositorioNoInicializadoError):
+        repo.list_baselines()
+
+
+def test_list_baselines_vacio(tmp_path: Path) -> None:
+    """ Validar el mensaje informativo correcto cuando no se ha creado ninguna línea base. """
+    repo = Repositorio(tmp_path)
+    repo.init()
+    
+    resultado = repo.list_baselines()
+    assert resultado == "No hay líneas base."
+
+
+def test_list_baselines_con_elementos(tmp_path: Path) -> None:
+    """ Validar que se listen en orden alfabético todas las líneas base registradas en el disco. """
+    repo = Repositorio(tmp_path)
+    repo.init()
+    
+    # 1. Crear un escenario base con un archivo y un commit para generar la versión v1
+    archivo = tmp_path / "main.py"
+    archivo.write_text("print('v1')")
+    repo.add("main.py")
+    repo.commit("Primer Commit")
+    
+    # 2. Registrar múltiples líneas base deliberadamente desordenadas cronológicamente
+    repo.baseline("Beta_Release")
+    repo.baseline("Alpha_Release")
+    
+    # 3. Invocar el listado bajo prueba
+    resultado = repo.list_baselines()
+    
+    # 4. Aserciones de formato y ordenamiento alfabético esperado (*.txt ordenados)
+    lineas = resultado.split("\n")
+    assert lineas[0] == "Líneas base:"
+    assert lineas[1] == "Alpha_Release -> v1"
+    assert lineas[2] == "Beta_Release -> v1"
+
+#----- Tests de Diff
+def test_diff_error_repositorio_no_inicializado(tmp_path: Path) -> None:
+    """Validar que se bloquee el comando si el repositorio no está inicializado."""
+    repo = Repositorio(tmp_path)
+    with pytest.raises(RepositorioNoInicializadoError):
+        repo.diff("v1", "v2")
+
+
+def test_diff_error_versiones_inexistentes(tmp_path: Path) -> None:
+    """Validar que se lance ValueError si se intenta comparar versiones que no existen."""
+    repo = Repositorio(tmp_path)
+    repo.init()
+    
+    # Intentar comparar versiones en un historial vacío
+    with pytest.raises(ValueError, match='La versión "v1" no existe en el repositorio.'):
+        repo.diff("v1", "v2")
+
+
+def test_diff_versiones_identicas(tmp_path: Path) -> None:
+    """Validar el mensaje esperado cuando se comparan una versión contra sí misma."""
+    repo = Repositorio(tmp_path)
+    repo.init()
+    
+    archivo = tmp_path / "main.py"
+    archivo.write_text("print('Hola World')")
+    repo.add("main.py")
+    repo.commit("Commit inicial")  # Genera v1
+    
+    resultado = repo.diff("v1", "v1")
+    assert resultado == "Las versiones son iguales."
+
+
+def test_diff_deteccion_de_cambios_linea_por_linea(tmp_path: Path) -> None:
+    """Validar la estructura del reporte generado cuando existen diferencias entre versiones."""
+    repo = Repositorio(tmp_path)
+    repo.init()
+    
+    archivo_objetivo = tmp_path / "archivo.txt"
+    
+    # 1. Crear versión 1 (v1)
+    archivo_objetivo.write_text("Línea 1 invariable\nLínea 2 original")
+    repo.add("archivo.txt")
+    repo.commit("Primera versión")
+    
+    # 2. Crear versión 2 (v2) con modificaciones en la segunda línea
+    archivo_objetivo.write_text("Línea 1 invariable\nLínea 2 modificada")
+    repo.commit("Segunda versión")
+    
+    # 3. Invocar el comparador de versiones
+    reporte_resultado = repo.diff("v1", "v2")
+    
+    # 4. Aserciones del formato de salida del reporte
+    assert "[archivo.txt] Línea 2" in reporte_resultado
+    assert "- v1: Línea 2 original" in reporte_resultado
+    assert "+ v2: Línea 2 modificada" in reporte_resultado
