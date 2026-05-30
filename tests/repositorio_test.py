@@ -567,3 +567,54 @@ def test_rm_actualiza_tracked_files(tmp_path: Path) -> None:
     rastreados = repo.manejador.leer_tracked_files()
 
     assert rastreados == ["b.txt"]
+
+#----- History tests
+
+def test_history_sin_init(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que se arroje la excepción:
+    RepositorioNoInicializadoError
+    cuando el repositorio no ha sido inicializado
+    """
+    repo = Repositorio(tmp_path)
+    with pytest.raises(RepositorioNoInicializadoError):
+        repo.status()
+
+def test_history_sin_versiones(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que history regrese el mensaje:
+    'No hay versiones.'
+    en caso de que no haya versiones registradas
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+    mensaje = repo.history()
+    assert mensaje == 'No hay versiones.'
+
+def test_history(tmp_path: Path) -> None:
+    """
+    Prueba para verificar que el mensaje es correcto al
+    crear múltiples versiones
+    """
+    repo = Repositorio(tmp_path)
+    repo.init()
+    archivo1 = tmp_path / "a.txt"
+    archivo2 = tmp_path / "b.txt"
+    archivo3 = tmp_path / "c.txt"
+    archivo1.write_text("a")
+    archivo2.write_text("b")
+    archivo3.write_text("c")
+    repo.add("a.txt")
+    repo.commit("Primer commit")
+    repo.add("b.txt")
+    repo.commit("Segundo commit")
+    repo.add("c.txt")
+    repo.commit("Tercer commit")    
+    mensaje = repo.history()
+    cadenas = mensaje.split("\n")
+    assert cadenas[1].startswith("v1")
+    assert cadenas[1].endswith("Primer commit")
+    assert cadenas[2].startswith("v2")
+    assert cadenas[2].endswith("Segundo commit")
+    assert cadenas[3].startswith("v3")
+    assert cadenas[3].endswith("Tercer commit")
