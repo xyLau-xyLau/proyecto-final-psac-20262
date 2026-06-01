@@ -271,19 +271,25 @@ class Repositorio:
 
         Raises:
             RepositorioNoInicializadoError: Si no existe .sbac/
+            ValueError: Si el nombre está vacío o no existen versiones registradas
         """
         if not self.manejador.existe_repositorio():
             raise RepositorioNoInicializadoError()
         
+        # Validación de robustez: Evitar nombres vacíos o puros espacios
+        if not nombre or not nombre.strip():
+            raise ValueError("El nombre de la línea base no puede estar vacío")
+        
         version_actual = self.manejador.leer_current_version()
 
+        # CORREGIDO: Ahora lanza una excepción adecuada en lugar de un return limpio
         if not version_actual:
-            return 'No existen versiones para marcar como línea base.'
+            raise ValueError("No se puede crear una línea base si no existen versiones registradas")
         
         ruta_baseline = (
             self.manejador.ruta_sbac /
             self.manejador.SUBDIR_BASELINES /
-            f'{nombre}.txt'
+            f'{nombre.strip()}.txt'
         )
 
         self.manejador.escribir_archivo(
@@ -291,10 +297,7 @@ class Repositorio:
             version_actual
         )
 
-        return (
-            f'Línea base "{nombre}" '
-            f'creada sobre versión {version_actual}'
-        )
+        return f'Línea base "{nombre.strip()}" creada sobre versión {version_actual}'
 
     def list_baselines(self) -> str:
         """
@@ -346,14 +349,18 @@ class Repositorio:
 
         Raises:
             RepositorioNoInicializadoError: Si no existe .sbac/
+            ValueError: Si alguna de las versiones especificadas no existe
         """
         if not self.manejador.existe_repositorio():
             raise RepositorioNoInicializadoError()
 
         versiones = self.manejador.listar_versiones()
 
-        if v1 not in versiones or v2 not in versiones:
-            return 'Una o ambas versiones no se encontraron.'
+        # CORREGIDO: Lanza excepciones explícitas y detalladas en lugar de un return limpio
+        if v1 not in versiones:
+            raise ValueError(f'La versión "{v1}" no existe en el repositorio.')
+        if v2 not in versiones:
+            raise ValueError(f'La versión "{v2}" no existe en el repositorio.')
 
         metadata_v1 = Version.desde_dict(
             self.manejador.leer_metadata(v1)
@@ -370,57 +377,28 @@ class Repositorio:
         resultado = []
 
         for archivo in archivos:
-
             contenido_v1 = ''
             contenido_v2 = ''
 
             if archivo in metadata_v1.archivos:
-                contenido_v1 = self.manejador.leer_archivo_de_version(
-                    v1,
-                    archivo
-                )
+                contenido_v1 = self.manejador.leer_archivo_de_version(v1, archivo)
 
             if archivo in metadata_v2.archivos:
-                contenido_v2 = self.manejador.leer_archivo_de_version(
-                    v2,
-                    archivo
-                )
+                contenido_v2 = self.manejador.leer_archivo_de_version(v2, archivo)
 
             lineas_v1 = contenido_v1.splitlines()
             lineas_v2 = contenido_v2.splitlines()
 
-            max_lineas = max(
-                len(lineas_v1),
-                len(lineas_v2)
-            )
+            max_lineas = max(len(lineas_v1), len(lineas_v2))
 
             for i in range(max_lineas):
-
-                linea1 = (
-                    lineas_v1[i]
-                    if i < len(lineas_v1)
-                    else ''
-                )
-
-                linea2 = (
-                    lineas_v2[i]
-                    if i < len(lineas_v2)
-                    else ''
-                )
+                linea1 = lineas_v1[i] if i < len(lineas_v1) else ''
+                linea2 = lineas_v2[i] if i < len(lineas_v2) else ''
 
                 if linea1 != linea2:
-
-                    resultado.append(
-                        f'[{archivo}] Línea {i + 1}'
-                    )
-
-                    resultado.append(
-                        f'- {v1}: {linea1}'
-                    )
-
-                    resultado.append(
-                        f'+ {v2}: {linea2}'
-                    )
+                    resultado.append(f'[{archivo}] Línea {i + 1}')
+                    resultado.append(f'- {v1}: {linea1}')
+                    resultado.append(f'+ {v2}: {linea2}')
 
         if not resultado:
             return 'Las versiones son iguales.'
@@ -439,49 +417,30 @@ class Repositorio:
 
         Raises:
             RepositorioNoInicializadoError: Si no existe .sbac/
+            ValueError: Si la versión solicitada no existe en el repositorio
         """
         if not self.manejador.existe_repositorio():
             raise RepositorioNoInicializadoError()
 
         versiones = self.manejador.listar_versiones()
 
+        # CORREGIDO: Lanza una excepción en lugar de retornar una cadena ordinaria
         if version_id not in versiones:
-            return f'La versión "{version_id}" no se encontró.'
+            raise ValueError(f'La versión "{version_id}" no se encontró.')
 
         metadata = self.manejador.leer_metadata(version_id)
-
         version = Version.desde_dict(metadata)
 
         for archivo in version.archivos:
+            contenido = self.manejador.leer_archivo_de_version(version_id, archivo)
+            ruta_destino = self.ruta_workspace / archivo
 
-            contenido = self.manejador.leer_archivo_de_version(
-                version_id,
-                archivo
-            )
+            ruta_destino.parent.mkdir(parents=True, exist_ok=True)
+            self.manejador.escribir_archivo(ruta_destino, contenido)
 
-            ruta_destino = (
-                self.ruta_workspace /
-                archivo
-            )
+        self.manejador.escribir_current_version(version_id)
 
-            ruta_destino.parent.mkdir(
-                parents=True,
-                exist_ok=True
-            )
-
-            self.manejador.escribir_archivo(
-                ruta_destino,
-                contenido
-            )
-
-        self.manejador.escribir_current_version(
-            version_id
-        )
-
-        return (
-            f'Repositorio restaurado '
-            f'a la versión {version_id}'
-        )
+        return f'Repositorio restaurado a la versión {version_id}'
     
     # ---> Helpers privados ---
 
@@ -622,3 +581,4 @@ class Repositorio:
         bloque('Archivos sin seguimiento', sin_seguimiento)
 
         return '\n'.join(lineas).rstrip()
+    
