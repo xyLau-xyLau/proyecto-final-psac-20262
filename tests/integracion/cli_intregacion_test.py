@@ -1,7 +1,15 @@
 import sys
+import pytest
 
 from sbac.repositorio import Repositorio
 from sbac.cli import leer_entrada
+
+from sbac.errores import (
+    SinArchivosRastreadosError,
+    SinCambiosError,
+    ArchivoRastreadoFaltanteError,
+    ArchivoNoRastreadoError,
+)
 
 
 def test_integracion_init_crea_estructura_completa(tmp_path):
@@ -292,3 +300,97 @@ def test_integracion_checkout_actualiza_version_actual(tmp_path):
     status = repo.status()
 
     assert "Versión actual: v1" in status
+
+def test_integracion_commit_falla_sin_archivos_rastreados(tmp_path):
+    """
+    Verifica que commit() falle cuando no existen
+    archivos bajo seguimiento.
+    """
+    repo = Repositorio(tmp_path)
+
+    repo.init()
+
+    with pytest.raises(SinArchivosRastreadosError):
+        repo.commit("primer commit")
+
+
+def test_integracion_commit_falla_sin_cambios(tmp_path):
+    """
+    Verifica que commit() falle cuando no existen
+    cambios respecto de la última versión registrada.
+    """
+    archivo = tmp_path / "archivo.txt"
+    archivo.write_text("contenido")
+
+    repo = Repositorio(tmp_path)
+
+    repo.init()
+    repo.add("archivo.txt")
+
+    repo.commit("v1")
+
+    with pytest.raises(SinCambiosError):
+        repo.commit("v2")
+
+
+def test_integracion_commit_falla_si_archivo_rastreado_fue_eliminado(
+    tmp_path
+):
+    """
+    Verifica que commit() falle cuando un archivo
+    rastreado fue eliminado del workspace.
+    """
+    archivo = tmp_path / "archivo.txt"
+    archivo.write_text("contenido")
+
+    repo = Repositorio(tmp_path)
+
+    repo.init()
+    repo.add("archivo.txt")
+
+    archivo.unlink()
+
+    with pytest.raises(ArchivoRastreadoFaltanteError):
+        repo.commit("commit")
+
+
+def test_integracion_rm_falla_si_archivo_no_esta_rastreado(tmp_path):
+    """
+    Verifica que rm() falle cuando se intenta eliminar
+    del seguimiento un archivo que no está rastreado.
+    """
+    archivo = tmp_path / "archivo.txt"
+    archivo.write_text("contenido")
+
+    repo = Repositorio(tmp_path)
+
+    repo.init()
+
+    with pytest.raises(ArchivoNoRastreadoError):
+        repo.rm("archivo.txt")
+
+
+def test_integracion_checkout_falla_si_version_no_existe(tmp_path):
+    """
+    Verifica que checkout() falle cuando se solicita
+    una versión inexistente.
+    """
+    repo = Repositorio(tmp_path)
+
+    repo.init()
+
+    with pytest.raises(ValueError):
+        repo.checkout("v999")
+
+
+def test_integracion_diff_falla_si_version_no_existe(tmp_path):
+    """
+    Verifica que diff() falle cuando alguna de las
+    versiones solicitadas no existe.
+    """
+    repo = Repositorio(tmp_path)
+
+    repo.init()
+
+    with pytest.raises(ValueError):
+        repo.diff("v1", "v999")
