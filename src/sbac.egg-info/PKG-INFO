@@ -1,3 +1,11 @@
+Metadata-Version: 2.4
+Name: sbac
+Version: 0.1.0
+Summary: Sistema Básico de Administración de Configuración
+Author: Equipo SBAC - Pruebas de Software y AC 2026-2
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+
 # Sistema Básico de Administración de Configuración(SBAC)
 
 ## Datos de la institución y asignatura
@@ -17,8 +25,6 @@
 
 ## Descripción del proyecto
 
-Herramienta CLI en Python que versiona archivos, registra metadatos, marca líneas base y compara versiones; el detalle de uso está en [MANUAL_USUARIO.md](MANUAL_USUARIO.md).
-
 ## Instrucciones
 
 ### Instalar el SBAC
@@ -26,9 +32,6 @@ Herramienta CLI en Python que versiona archivos, registra metadatos, marca líne
 pip install --upgrade pip setuptools
 pip install -e .
 ```
-Otras formas de instalar (a nivel usuario, etc.): ver [MANUAL_USUARIO.md](MANUAL_USUARIO.md).
-
-Para ejecutar con Docker: ver [INSTRUCCIONES_DOCKER.md](INSTRUCCIONES_DOCKER.md).
 
 ### Verificar la instalación
 
@@ -37,12 +40,3 @@ sbac --help
 ```
 
 Si la instalación fue correcta, se mostrará la ayuda con la lista de comandos disponibles.
-
-### Ejecutar las pruebas
-
-Requiere haber instalado el paquete antes (`pip install -e .`).
-
-```bash
-pytest                                              # toda la suite
-pytest --cov=src/sbac --cov-report=term-missing     # con cobertura
-```

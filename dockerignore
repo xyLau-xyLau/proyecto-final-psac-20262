@@ -1,0 +1,32 @@
+# Archivos y carpetas que NO deben entrar en la imagen Docker.
+# Reduce el tamano de la imagen y evita copiar artefactos locales.
+
+# Control de versiones
+.git
+.gitignore
+
+# Entornos virtuales locales
+.venv
+venv
+env
+
+# Cache y artefactos de Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+src/*.egg-info
+.pytest_cache
+.coverage
+htmlcov
+
+# El propio repositorio interno de SBAC (si se prueba en la raiz)
+.sbac
+
+# Documentacion y entregables que no necesita la imagen
+*.pdf
+docs
+
+# Configuracion de editores
+.vscode
+.idea
