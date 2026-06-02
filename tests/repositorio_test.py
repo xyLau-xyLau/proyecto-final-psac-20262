@@ -578,7 +578,7 @@ def test_history_sin_init(tmp_path: Path) -> None:
     """
     repo = Repositorio(tmp_path)
     with pytest.raises(RepositorioNoInicializadoError):
-        repo.status()
+        repo.history()
 
 def test_history_sin_versiones(tmp_path: Path) -> None:
     """

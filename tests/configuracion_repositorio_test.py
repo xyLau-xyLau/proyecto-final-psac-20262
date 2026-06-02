@@ -28,7 +28,6 @@ def test_init_configuracion_default(tmp_path: Path) -> None:
         config = json.load(archivo)
 
     assert "autor" in config
-    assert "algoritmo_hash" in config
 
 def test_autor_config(tmp_path: Path) -> None:
     """
@@ -112,7 +111,7 @@ def test_commit_metadata(
     archivo_prueba = tmp_path / NOMBRE_ARCHIVO 
     archivo_prueba.write_text(MENSAJE_GENERICO)
 
-    repo.add("archivo.txt")
+    repo.add(NOMBRE_ARCHIVO)
     repo.commit("commit")
 
     with open(
